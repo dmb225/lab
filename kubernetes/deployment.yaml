@@ -1,0 +1,71 @@
+
+# Deployment for lab Backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-backend
+  namespace: lab
+  labels:
+    app.kubernetes.io/name: lab
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lab
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lab
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          image: lab:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: lab-config
+            - secretRef:
+                name: lab-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: media-data
+              mountPath: /app/media
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: media-data
+          persistentVolumeClaim:
+            claimName: lab-media
+      restartPolicy: Always
+
+---

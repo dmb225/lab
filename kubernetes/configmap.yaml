@@ -1,0 +1,30 @@
+
+# ConfigMap for lab
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lab-config
+  namespace: lab
+  labels:
+    app.kubernetes.io/name: lab
+    app.kubernetes.io/component: backend
+data:
+  # Application settings
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  PROJECT_NAME: "lab"
+  API_V1_STR: "/api/v1"
+  TIMEZONE: "UTC"
+  # PostgreSQL settings
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "lab"
+  # Redis settings
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  # Logfire settings
+  LOGFIRE_SERVICE_NAME: "lab"
+  LOGFIRE_ENVIRONMENT: "production"
+  # CORS settings (adjust for your domain)
+  CORS_ORIGINS: '["https://lab.example.com"]'

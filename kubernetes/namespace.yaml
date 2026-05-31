@@ -1,0 +1,9 @@
+
+# Kubernetes Namespace for lab
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab
+  labels:
+    app.kubernetes.io/name: lab
+    app.kubernetes.io/managed-by: kubectl
