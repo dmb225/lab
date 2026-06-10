@@ -128,11 +128,14 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str | None = None
     REDIS_DB: int = 0
+    REDISS_URL: str | None = None  # For managed Redis services with SSL (e.g. Upstash)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def REDIS_URL(self) -> str:
         """Build Redis connection URL."""
+        if self.REDISS_URL:
+            return self.REDISS_URL
         if self.REDIS_PASSWORD:
             return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
