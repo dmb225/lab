@@ -4,7 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { useWebSocket } from "./use-websocket";
 import { useChatStore, useAuthStore } from "@/stores";
-import type { ChatMessageFile, Decision, PendingApproval, ToolCall, WSEvent } from "@/types";
+import type {
+  AskUserAnswer,
+  AskUserQuestion,
+  ChatMessageFile,
+  Decision,
+  PendingApproval,
+  ToolCall,
+  WSEvent,
+} from "@/types";
 import { WS_URL } from "@/lib/constants";
 import { useConversationStore } from "@/stores";
 /** A message the user typed while the agent was busy / socket offline.
@@ -59,6 +67,7 @@ export function useChat(options: UseChatOptions = {}) {
   const thinkingEffortRef = useRef<"low" | "medium" | "high" | null>(null);
   // Human-in-the-Loop: pending tool approval state
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
+  const [pendingQuestions, setPendingQuestions] = useState<AskUserQuestion[] | null>(null);
 
   const handleWebSocketMessage = useCallback(
     (event: MessageEvent) => {
@@ -404,6 +413,20 @@ export function useChat(options: UseChatOptions = {}) {
           break;
         }
 
+        case "ask_user": {
+          const { questions } = wsEvent.data as {
+            questions: { question: string; options: string[]; allow_custom: boolean }[];
+          };
+          setPendingQuestions(
+            (questions ?? []).map((q) => ({
+              question: q.question,
+              options: q.options ?? [],
+              allowCustom: q.allow_custom,
+            })),
+          );
+          break;
+        }
+
         case "complete": {
           setIsProcessing(false);
           // Clear currentMessageId after complete (message_saved should have handled ID mapping)
@@ -546,6 +569,15 @@ export function useChat(options: UseChatOptions = {}) {
     [updateMessage, sendMessage],
   );
 
+  const sendAskUserResponses = useCallback(
+    (answers: AskUserAnswer[]) => {
+      if (!isConnected) return;
+      setPendingQuestions(null);
+      sendMessage({ type: "ask_user_response", answers });
+    },
+    [isConnected, sendMessage],
+  );
+
   // Drain message queue when processing finishes AND we're back online.
   // Re-runs on either flip so a reconnect after offline → drains; a busy turn
   // ending → drains the next one.
@@ -584,5 +616,7 @@ export function useChat(options: UseChatOptions = {}) {
     // Human-in-the-Loop support
     pendingApproval,
     sendResumeDecisions,
+    pendingQuestions,
+    sendAskUserResponses,
   };
 }

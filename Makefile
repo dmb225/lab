@@ -27,12 +27,12 @@ dev:
 	@echo "▶ Building backend image…"
 	docker compose -f docker-compose.dev.yml build app
 	@echo "▶ Starting services…"
-	@if ! docker compose -f docker-compose.dev.yml up -d; then \
+	@if ! docker compose -f docker-compose.dev.yml $(COMPOSE_DEV_PROFILES) up -d; then \
 		echo ""; \
 		echo "⚠ First start failed. Tearing down stale containers and retrying once…"; \
 		echo "  (volumes preserved — DB data is safe; use 'make clean' for a full wipe)"; \
 		docker compose -f docker-compose.dev.yml down --remove-orphans; \
-		docker compose -f docker-compose.dev.yml up -d; \
+		docker compose -f docker-compose.dev.yml $(COMPOSE_DEV_PROFILES) up -d; \
 	fi
 	$(call _wait_for_db,docker-compose.dev.yml)
 	@echo "▶ Applying migrations…"
@@ -66,18 +66,18 @@ seed:
 bootstrap: dev seed
 
 dev-down:
-	docker compose -f docker-compose.dev.yml down
+	docker compose -f docker-compose.dev.yml $(COMPOSE_DEV_PROFILES) down
 
 # Full wipe — containers, networks, AND volumes. Use after a corrupted state
 # (e.g. detached networks, port conflicts that left orphans). DESTROYS DB data.
 docker-clean:
 	@echo "▶ Removing containers, networks, AND volumes for the dev stack…"
 	@echo "  ⚠️  This deletes all local DB data and uploaded files."
-	docker compose -f docker-compose.dev.yml down -v --remove-orphans
+	docker compose -f docker-compose.dev.yml $(COMPOSE_DEV_PROFILES) down -v --remove-orphans
 	@echo "✅ Cleaned. Run 'make dev' to start fresh."
 
 dev-logs:
-	docker compose -f docker-compose.dev.yml logs -f
+	docker compose -f docker-compose.dev.yml $(COMPOSE_DEV_PROFILES) logs -f
 
 dev-rebuild:
 	docker compose -f docker-compose.dev.yml build --no-cache app

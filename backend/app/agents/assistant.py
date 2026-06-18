@@ -4,10 +4,11 @@ The main conversational agent that can be extended with custom tools.
 """
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import (
     ReinjectSystemPrompt,
     Thinking,
@@ -27,6 +28,7 @@ from pydantic_ai.settings import ModelSettings
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 from app.agents.tools import get_current_datetime
+from app.agents.tools.ask_user_tool import MAX_QUESTIONS, QuestionItem, format_answers
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,9 @@ def _build_model(model_name: str):
     )
 
 
+AskUserCallback = Callable[[list[dict[str, Any]]], Awaitable[list[dict[str, Any]]]]
+
+
 @dataclass
 class Deps:
     """Dependencies for the assistant agent.
@@ -49,6 +54,7 @@ class Deps:
     user_id: str | None = None
     user_name: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    ask_user: AskUserCallback | None = None
 
 
 class AssistantAgent:
@@ -122,6 +128,36 @@ class AssistantAgent:
             Use this tool when you need to know the current date or time.
             """
             return get_current_datetime()
+
+        @agent.tool
+        async def ask_user(ctx: RunContext[Deps], questions: list[QuestionItem]) -> str:
+            """Ask the user one or more questions and wait for their answers.
+
+            Use this when a decision or missing detail would materially change what
+            you do next and you can't reasonably assume it. You may pass several
+            questions at once — the user answers them one after another and you get
+            all the answers back together (good for an intake/setup flow). You can
+            also call this again later to follow up on what they said. Prefer
+            answering directly when the request is already clear.
+
+            Args:
+                questions: The questions to ask. Each has the question text, optional
+                    suggested `options`, and `allow_custom` (whether a free-form
+                    answer is allowed, default True).
+
+            Returns:
+                The user's answers as a Q/A transcript, with skipped questions marked.
+            """
+            if ctx.deps.ask_user is None:
+                return (
+                    "User interaction is unavailable here; proceed with a reasonable "
+                    "assumption and state it briefly."
+                )
+            if not questions:
+                return "No questions were provided."
+            payload = [q.model_dump() for q in questions[:MAX_QUESTIONS]]
+            answers = await ctx.deps.ask_user(payload)
+            return format_answers(payload, answers)
 
     @staticmethod
     def _build_model_history(

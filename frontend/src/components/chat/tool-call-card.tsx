@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Code2,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "./copy-button";
@@ -446,13 +447,67 @@ function GenericToolResult({ toolCall, resultText }: { toolCall: ToolCall; resul
   );
 }
 
+/** Pull the question texts out of an `ask_user` tool's args (object or
+ *  JSON-string). Handles the `questions` list. Returns [] when none found. */
+function extractQuestions(args: unknown): string[] {
+  let obj: unknown = args;
+  if (typeof args === "string") {
+    try {
+      obj = JSON.parse(args);
+    } catch {
+      return [];
+    }
+  }
+  if (obj && typeof obj === "object" && Array.isArray((obj as { questions?: unknown }).questions)) {
+    return (obj as { questions: Array<{ question?: unknown }> }).questions.map((q) =>
+      String(q?.question ?? ""),
+    );
+  }
+  return [];
+}
+
+/** Transcript view of an `ask_user` turn. Once answered, the result is already a
+ *  "Q: …/A: …" transcript, so render it as-is; while waiting, list the
+ *  questions that were asked. */
+function AskUserResult({ args, resultText }: { args: unknown; resultText: string }) {
+  if (resultText) {
+    return (
+      <p className="text-foreground/85 py-1 text-sm leading-relaxed break-words whitespace-pre-wrap">
+        {resultText}
+      </p>
+    );
+  }
+  const questions = extractQuestions(args);
+  return (
+    <div className="space-y-2.5 py-1">
+      <div>
+        <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+          {questions.length > 1 ? "Questions" : "Question"}
+        </p>
+        {questions.length > 0 ? (
+          <ul className="text-foreground/85 mt-0.5 space-y-1 text-sm leading-relaxed">
+            {questions.map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground mt-0.5 text-xs italic">Waiting for the user…</p>
+        )}
+      </div>
+      {questions.length > 0 && (
+        <p className="text-muted-foreground text-xs italic">Waiting for the user…</p>
+      )}
+    </div>
+  );
+}
+
 // --- Main component ---
 
 export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   // Collapsed by default — the bar acts as the toggle. `showRaw` swaps the
   // formatted view for args + raw output (the </> button). Charts are the
   // exception: they're only useful when visible, so expand them by default.
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(toolCall.name === "ask_user" || false);
   const [showRaw, setShowRaw] = useState(false);
 
   // Short input hint shown in the collapsed bar — the query for search
@@ -482,17 +537,30 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
       ? parseWebSearch(toolCall.result)
       : null;
   const isWebSearch = webResults !== null;
+  const isAskUser = toolCall.name === "ask_user";
 
-  const hasSpecialRenderer = isDateTime || isRAGSearch || isWebSearch;
+  const hasSpecialRenderer = isDateTime || isRAGSearch || isWebSearch || isAskUser;
   const friendlyName = isDateTime
     ? "Current Date & Time"
     : isRAGSearch
       ? "Knowledge Base Search"
       : isWebSearch
         ? "Web Search"
-        : toolCall.name;
+        : isAskUser
+          ? "Question"
+          : toolCall.name === "run_python"
+            ? "Run Python"
+            : toolCall.name;
 
-  const ToolIcon = isDateTime ? Clock : isRAGSearch ? Search : isWebSearch ? Globe : Wrench;
+  const ToolIcon = isDateTime
+    ? Clock
+    : isRAGSearch
+      ? Search
+      : isWebSearch
+        ? Globe
+        : isAskUser
+          ? MessageCircleQuestion
+          : Wrench;
 
   const toggleExpanded = () => {
     setExpanded((prev) => {
@@ -568,6 +636,8 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
             <RAGSearchResults result={resultText} />
           ) : toolCall.status === "completed" && isWebSearch && webResults ? (
             <WebSearchResults data={webResults} />
+          ) : isAskUser ? (
+            <AskUserResult args={toolCall.args} resultText={resultText} />
           ) : (
             <GenericToolResult toolCall={toolCall} resultText={resultText} />
           )}

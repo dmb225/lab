@@ -1,7 +1,7 @@
 {
   "template": "https://github.com/vstorm-co/full-stack-ai-agent-template",
-  "commit": "07a8cd44911faaa80c93bc6120f64159752e1b5e",
-  "checkout": "07a8cd44911faaa80c93bc6120f64159752e1b5e",
+  "commit": "7ec4906c916e82d37023291be84af9bd110f34d9",
+  "checkout": null,
   "context": {
     "cookiecutter": {
       "generator_name": "fastapi-fullstack",
@@ -96,6 +96,9 @@
       "web_fetch_tool": true,
       "enable_charts": false,
       "charts_channel_png": false,
+      "enable_antv_charts": false,
+      "enable_code_execution": false,
+      "enable_skills": false,
       "enable_webhooks": false,
       "websocket_auth": "jwt",
       "websocket_auth_jwt": true,
@@ -204,7 +207,7 @@
       "enable_status_badge": false,
       "enable_storybook": false,
       "_template": "https://github.com/vstorm-co/full-stack-ai-agent-template",
-      "_commit": "07a8cd44911faaa80c93bc6120f64159752e1b5e"
+      "_commit": "7ec4906c916e82d37023291be84af9bd110f34d9"
     }
   },
   "directory": "template"

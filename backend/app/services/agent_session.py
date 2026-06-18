@@ -52,10 +52,14 @@ class AgentSession:
         self.user = user
         self.conversation_history: list[dict[str, str]] = []
         self.deps = Deps()
+        self.deps.ask_user = self._ask_user
         self.current_conversation_id: str | None = None
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
+        if data.get("type") == "ask_user_response":
+            return
+
         user_message = data.get("message", "")
         file_ids = data.get("file_ids", [])
 
@@ -127,6 +131,24 @@ class AgentSession:
         except Exception as e:
             logger.exception(f"Error processing agent request: {e}")
             await send_event(self.websocket, "error", {"message": str(e)})
+
+    async def _ask_user(self, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Pause the run: ask the client questions and block until they answer.
+
+        Emits an ``ask_user`` event with the whole batch, then reads frames off
+        this socket until an ``ask_user_response`` arrives. This is safe even
+        though the route also reads from the socket: while a tool runs, the agent
+        run (and therefore the route's receive loop) is suspended awaiting us, so
+        there is exactly one active reader. The client returns a list of answers
+        parallel to the questions ({answer, skipped}).
+        """
+        await send_event(self.websocket, "ask_user", {"questions": questions})
+        while True:
+            data = await self.websocket.receive_json()
+            if data.get("type") == "ask_user_response":
+                answers = data.get("answers")
+                return answers if isinstance(answers, list) else []
+            # Ignore unrelated frames while questions are pending (UI is modal).
 
     async def _build_multimodal_input(
         self, user_message: str, file_ids: list[Any]
@@ -247,7 +269,7 @@ class AgentSession:
                 tc = {
                     "tool_call_id": tool_event.part.tool_call_id,
                     "tool_name": tool_event.part.tool_name,
-                    "args": tool_event.part.args,
+                    "args": tool_event.part.args_as_dict(raise_if_invalid=False),
                 }
                 collected_tool_calls.append(tc)
                 pending[tool_event.part.tool_call_id] = tc
