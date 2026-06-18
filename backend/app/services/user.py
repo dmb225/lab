@@ -7,6 +7,9 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+# Postgres primary keys are UUIDs.
+UserId = UUID
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,7 +42,7 @@ class UserService:
         """Invoke an async PostgreSQL repo function with the session."""
         return await func(self.db, *args, **kwargs)
 
-    async def get_by_id(self, user_id: UUID) -> User:
+    async def get_by_id(self, user_id: UserId) -> User:
         """Get user by ID.
 
         Raises:
@@ -205,7 +208,7 @@ class UserService:
             raise AuthenticationError(message="User account is disabled")
         return user
 
-    async def update(self, user_id: UUID, user_in: UserUpdate) -> User:
+    async def update(self, user_id: UserId, user_in: UserUpdate) -> User:
         """Update user.
 
         Raises:
@@ -220,7 +223,7 @@ class UserService:
         return await self._repo(user_repo.update, db_user=user, update_data=update_data)
 
     async def update_avatar(
-        self, user_id: UUID, file_data: bytes, filename: str, content_type: str
+        self, user_id: UserId, file_data: bytes, filename: str, content_type: str
     ) -> User:
         """Upload or replace avatar image.
 
@@ -251,7 +254,7 @@ class UserService:
             user_repo.update, db_user=user, update_data={"avatar_url": storage_path}
         )
 
-    async def delete(self, user_id: UUID) -> User:
+    async def delete(self, user_id: UserId) -> User:
         """Delete user.
 
         Raises:

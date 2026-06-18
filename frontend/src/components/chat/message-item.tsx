@@ -120,7 +120,8 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
           })()}
 
         {(() => {
-          const parts = message.parts ?? [];
+          const rawParts = message.parts ?? [];
+          const parts = rawParts;
           const useParts = !isUser && parts.length > 0;
 
           // "Thinking…" placeholder — shown until anything streams in.

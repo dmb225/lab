@@ -88,11 +88,13 @@ class AssistantAgent:
         """Create and configure the PydanticAI agent."""
         model = _build_model(self.model_name)
 
-        capabilities = [ReinjectSystemPrompt()]
+        capabilities: list[Any] = [ReinjectSystemPrompt()]
         if self.thinking_effort:
-            capabilities.append(Thinking(effort=self.thinking_effort))
-        capabilities.append(WebSearch())
-        capabilities.append(WebFetch())
+            capabilities.append(Thinking(effort=self.thinking_effort))  # ty: ignore[invalid-argument-type]
+        # Local DuckDuckGo / fetch (the installed extras) — works uniformly across
+        # all providers, unlike provider-native web search.
+        capabilities.append(WebSearch(native=False, local="duckduckgo"))
+        capabilities.append(WebFetch(native=False, local=True))
 
         # The unified ``Thinking()`` capability enables reasoning, but for the
         # OpenAI Responses API it sets only the effort — not the *summary*

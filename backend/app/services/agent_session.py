@@ -9,6 +9,8 @@ The route is left as a thin lifecycle wrapper that just feeds incoming messages 
 ``AgentSession.process_message``.
 """
 
+import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -23,7 +25,12 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
+from pydantic_ai.messages import (
+    BinaryContent,
+    TextPart,
+    ThinkingPart,
+    ThinkingPartDelta,
+)
 
 from app.agents.assistant import Deps, get_agent
 from app.api.deps import get_conversation_service
@@ -54,12 +61,80 @@ class AgentSession:
         self.deps = Deps()
         self.deps.ask_user = self._ask_user
         self.current_conversation_id: str | None = None
+        self._turn_task: asyncio.Task[None] | None = None
+        self._ask_user_future: asyncio.Future[list[dict[str, Any]]] | None = None
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; an ``ask_user_response`` unblocks a
+        paused run; any other control frame is ignored; a bare message starts a
+        new turn as a cancellable background task.
+        """
+        msg_type = data.get("type")
+
+        if msg_type == "stop":
+            await self._cancel_turn()
+            return
+
+        if msg_type == "ask_user_response":
+            fut = self._ask_user_future
+            if fut is not None and not fut.done():
+                answers = data.get("answers")
+                fut.set_result(answers if isinstance(answers, list) else [])
+            return
+
+        if msg_type is not None:
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+                    "conversation_id": self.current_conversation_id,
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
-        if data.get("type") == "ask_user_response":
-            return
-
         user_message = data.get("message", "")
         file_ids = data.get("file_ids", [])
 
@@ -135,20 +210,18 @@ class AgentSession:
     async def _ask_user(self, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Pause the run: ask the client questions and block until they answer.
 
-        Emits an ``ask_user`` event with the whole batch, then reads frames off
-        this socket until an ``ask_user_response`` arrives. This is safe even
-        though the route also reads from the socket: while a tool runs, the agent
-        run (and therefore the route's receive loop) is suspended awaiting us, so
-        there is exactly one active reader. The client returns a list of answers
-        parallel to the questions ({answer, skipped}).
+        Emits an ``ask_user`` event with the whole batch, then awaits a future the
+        frame dispatcher completes when the matching ``ask_user_response`` arrives.
+        The client returns a list of answers parallel to the questions.
         """
-        await send_event(self.websocket, "ask_user", {"questions": questions})
-        while True:
-            data = await self.websocket.receive_json()
-            if data.get("type") == "ask_user_response":
-                answers = data.get("answers")
-                return answers if isinstance(answers, list) else []
-            # Ignore unrelated frames while questions are pending (UI is modal).
+        loop = asyncio.get_running_loop()
+        fut: asyncio.Future[list[dict[str, Any]]] = loop.create_future()
+        self._ask_user_future = fut
+        try:
+            await send_event(self.websocket, "ask_user", {"questions": questions})
+            return await fut
+        finally:
+            self._ask_user_future = None
 
     async def _build_multimodal_input(
         self, user_message: str, file_ids: list[Any]
@@ -223,8 +296,6 @@ class AgentSession:
                         {"index": event.index, "content": event.part.content},
                     )
                 elif isinstance(event.part, ThinkingPart) and event.part.content:
-                    # Surface the model's reasoning trace to the UI. Anthropic +
-                    # OpenAI-reasoning models emit these as the model "thinks".
                     await send_event(
                         self.websocket,
                         "thinking_delta",

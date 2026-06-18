@@ -4,6 +4,7 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
+# UserService methods are async for every database, so mock them with AsyncMock.
 ServiceMock = AsyncMock
 from uuid import uuid4
 

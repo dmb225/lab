@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/vstorm-co/full-stack-ai-agent-template",
-  "commit": "7ec4906c916e82d37023291be84af9bd110f34d9",
+  "commit": "d97d291c2ad58a496a38228d80f2392fa0fef25b",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -99,6 +99,7 @@
       "enable_antv_charts": false,
       "enable_code_execution": false,
       "enable_skills": false,
+      "enable_deep_research": false,
       "enable_webhooks": false,
       "websocket_auth": "jwt",
       "websocket_auth_jwt": true,
@@ -207,7 +208,7 @@
       "enable_status_badge": false,
       "enable_storybook": false,
       "_template": "https://github.com/vstorm-co/full-stack-ai-agent-template",
-      "_commit": "7ec4906c916e82d37023291be84af9bd110f34d9"
+      "_commit": "d97d291c2ad58a496a38228d80f2392fa0fef25b"
     }
   },
   "directory": "template"

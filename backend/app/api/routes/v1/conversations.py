@@ -106,7 +106,7 @@ async def list_conversations(
         limit=limit,
         include_archived=include_archived,
     )
-    return ConversationList(items=items, total=total)  # type: ignore[arg-type]
+    return ConversationList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post("", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
@@ -137,7 +137,7 @@ async def get_tool_stats(
 ) -> Any:
     """Top tools used by the active org over the given window."""
     items = await conversation_service.aggregate_tool_calls(active_org.id, days=days, limit=limit)
-    return ToolCallStatList(items=items, days=days)  # type: ignore[arg-type]
+    return ToolCallStatList(items=items, days=days)  # ty: ignore[invalid-argument-type]
 
 
 @router.get("/{conversation_id}", response_model=ConversationReadWithMessages)
@@ -231,7 +231,7 @@ async def list_messages(
         include_tool_calls=True,
         user_id=uid,
     )
-    return MessageList(items=items, total=total)  # type: ignore[arg-type]
+    return MessageList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post(

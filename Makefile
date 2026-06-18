@@ -199,8 +199,8 @@ user-list:
 
 # === Docker: Backend (Development) ===
 docker-up:
-	docker-compose build app
-	docker-compose up -d
+	docker compose build app
+	docker compose up -d
 	@echo ""
 	@echo "✅ Backend services started!"
 	@echo "   API: http://localhost:8000"
@@ -209,21 +209,21 @@ docker-up:
 	@echo "   Redis: localhost:6379"
 
 docker-down:
-	docker-compose down
-	docker-compose -f docker-compose.frontend.yml down 2>/dev/null || true
+	docker compose down
+	docker compose -f docker-compose.frontend.yml down 2>/dev/null || true
 
 docker-logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-build:
-	docker-compose build
+	docker compose build
 
 docker-shell:
-	docker-compose exec app /bin/bash
+	docker compose exec app /bin/bash
 
 # === Docker: Frontend (Development) ===
 docker-frontend:
-	docker-compose -f docker-compose.frontend.yml up -d
+	docker compose -f docker-compose.frontend.yml up -d
 	@echo ""
 	@echo "✅ Frontend started!"
 	@echo "   URL: http://localhost:3000"
@@ -231,17 +231,17 @@ docker-frontend:
 	@echo "Note: Backend must be running (make docker-up)"
 
 docker-frontend-down:
-	docker-compose -f docker-compose.frontend.yml down
+	docker compose -f docker-compose.frontend.yml down
 
 docker-frontend-logs:
-	docker-compose -f docker-compose.frontend.yml logs -f
+	docker compose -f docker-compose.frontend.yml logs -f
 
 docker-frontend-build:
-	docker-compose -f docker-compose.frontend.yml build
+	docker compose -f docker-compose.frontend.yml build
 
 # === Docker: Production (with Traefik) ===
 docker-prod:
-	docker-compose -f docker-compose.prod.yml up -d
+	docker compose -f docker-compose.prod.yml up -d
 	@echo ""
 	@echo "✅ Production services started with Traefik!"
 	@echo ""
@@ -251,31 +251,31 @@ docker-prod:
 	@echo "   Traefik: https://traefik.$$DOMAIN"
 
 docker-prod-down:
-	docker-compose -f docker-compose.prod.yml down
+	docker compose -f docker-compose.prod.yml down
 
 docker-prod-logs:
-	docker-compose -f docker-compose.prod.yml logs -f
+	docker compose -f docker-compose.prod.yml logs -f
 
 docker-prod-build:
-	docker-compose -f docker-compose.prod.yml build
+	docker compose -f docker-compose.prod.yml build
 
 # === Docker: Individual Services ===
 docker-db:
-	docker-compose up -d db
+	docker compose up -d db
 	@echo ""
 	@echo "✅ PostgreSQL started on port 5432"
 	@echo "   Connection: postgresql://postgres:postgres@localhost:5432/lab"
 
 docker-db-stop:
-	docker-compose stop db
+	docker compose stop db
 
 docker-redis:
-	docker-compose up -d redis
+	docker compose up -d redis
 	@echo ""
 	@echo "✅ Redis started on port 6379"
 
 docker-redis-stop:
-	docker-compose stop redis
+	docker compose stop redis
 
 # === Vercel (Frontend Deployment) ===
 vercel-deploy:

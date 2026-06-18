@@ -40,6 +40,7 @@ function AuthenticatedChatContainer() {
     connect,
     disconnect,
     sendMessage,
+    stopGeneration,
     clearMessages,
     queuedMessages,
     cancelQueued,
@@ -237,6 +238,7 @@ function AuthenticatedChatContainer() {
       onResumeDecisions={sendResumeDecisions}
       pendingQuestions={pendingQuestions}
       onAnswerQuestions={sendAskUserResponses}
+      onStop={stopGeneration}
     />
   );
 }
@@ -266,6 +268,7 @@ interface ChatUIProps {
   onResumeDecisions?: (decisions: Decision[]) => void;
   pendingQuestions?: AskUserQuestion[] | null;
   onAnswerQuestions?: (answers: AskUserAnswer[]) => void;
+  onStop?: () => void;
 }
 
 function ChatUI({
@@ -288,6 +291,7 @@ function ChatUI({
   onResumeDecisions,
   pendingQuestions,
   onAnswerQuestions,
+  onStop,
 }: ChatUIProps) {
   return (
     <div className="flex h-full w-full">
@@ -345,6 +349,7 @@ function ChatUI({
                   !!(pendingQuestions && pendingQuestions.length)
                 }
                 isProcessing={isProcessing}
+                onStop={onStop}
                 slashContext={slashContext}
                 commands={slashCommands}
               />

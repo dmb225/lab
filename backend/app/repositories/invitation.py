@@ -108,4 +108,4 @@ async def expire_stale(db: AsyncSession) -> int:
         .values(status=InvitationStatus.EXPIRED.value)
     )
     await db.flush()
-    return result.rowcount
+    return result.rowcount  # ty: ignore[unresolved-attribute]

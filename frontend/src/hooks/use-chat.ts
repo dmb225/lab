@@ -477,8 +477,9 @@ export function useChat(options: UseChatOptions = {}) {
 
   const doSend = useCallback(
     (content: string, fileIds?: string[], files?: ChatMessageFile[]) => {
+      const userMessageId = nanoid();
       addMessage({
-        id: nanoid(),
+        id: userMessageId,
         role: "user",
         content,
         timestamp: new Date(),
@@ -578,6 +579,18 @@ export function useChat(options: UseChatOptions = {}) {
     [isConnected, sendMessage],
   );
 
+  const stopGeneration = useCallback(() => {
+    sendMessage({ type: "stop" });
+    if (currentMessageIdRef.current) {
+      updateMessage(currentMessageIdRef.current, (msg) => ({ ...msg, isStreaming: false }));
+    }
+    setCurrentMessageId(null);
+    currentGroupIdRef.current = null;
+    setIsProcessing(false);
+    setPendingApproval(null);
+    setPendingQuestions(null);
+  }, [sendMessage, updateMessage, setCurrentMessageId]);
+
   // Drain message queue when processing finishes AND we're back online.
   // Re-runs on either flip so a reconnect after offline → drains; a busy turn
   // ending → drains the next one.
@@ -600,6 +613,7 @@ export function useChat(options: UseChatOptions = {}) {
     connect,
     disconnect,
     sendMessage: sendChatMessage,
+    stopGeneration,
     clearMessages,
     queuedMessages,
     cancelQueued,

@@ -68,11 +68,7 @@ async def agent_websocket(
                 data = await websocket.receive_json()
             except WebSocketDisconnect:
                 break
-
-            try:
-                await session.process_message(data)
-            except WebSocketDisconnect:
-                logger.info("Client disconnected during agent processing")
-                break
+            await session.handle_frame(data)
     finally:
+        await session.shutdown()
         manager.disconnect(websocket)
