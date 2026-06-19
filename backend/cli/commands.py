@@ -1,5 +1,7 @@
 """Project management CLI."""
 
+import os
+
 import click
 from tabulate import tabulate
 
@@ -20,7 +22,9 @@ def server_cli():
 
 @server_cli.command("run")
 @click.option("--host", default="0.0.0.0", help="Host to bind to")
-@click.option("--port", default=8000, type=int, help="Port to bind to")
+@click.option(
+    "--port", default=lambda: os.environ.get("PORT", 8000), type=int, help="Port to bind to"
+)
 @click.option("--reload", is_flag=True, help="Enable auto-reload")
 def server_run(host: str, port: int, reload: bool):
     """Run the development server."""
